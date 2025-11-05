@@ -44,17 +44,26 @@ const Index = () => {
               Automatically generate, package, and distribute high-quality sports highlights in real-time with AI-powered video processing
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/admin">
+              <Link to="/pricing">
                 <Button size="lg" className="text-lg px-8">
-                  <Video className="h-5 w-5 mr-2" />
-                  Admin Dashboard
+                  View Pricing
                 </Button>
               </Link>
-              <Link to="/client">
+              <Link to="/admin">
                 <Button size="lg" variant="outline" className="text-lg px-8">
-                  <Share2 className="h-5 w-5 mr-2" />
-                  Client Dashboard
+                  <Video className="h-5 w-5 mr-2" />
+                  View Demo
                 </Button>
+              </Link>
+            </div>
+            
+            <div className="flex items-center justify-center gap-6 mt-8 text-sm text-muted-foreground">
+              <Link to="/admin" className="hover:text-foreground transition-colors">
+                Admin View
+              </Link>
+              <span>•</span>
+              <Link to="/client" className="hover:text-foreground transition-colors">
+                Client View
               </Link>
             </div>
           </div>
@@ -117,14 +126,14 @@ const Index = () => {
             Experience the future of sports highlight generation with LiveClip AI
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/admin">
+            <Link to="/pricing">
               <Button size="lg" className="text-lg px-8">
-                Try Admin View
+                View Pricing Plans
               </Button>
             </Link>
-            <Link to="/client">
+            <Link to="/admin">
               <Button size="lg" variant="outline" className="text-lg px-8">
-                Try Client View
+                Try Demo
               </Button>
             </Link>
           </div>
