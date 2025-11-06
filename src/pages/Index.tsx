@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Zap, Video, Brain, Share2, Clock, Globe } from "lucide-react";
+import { Zap, Video, Brain, Share2, Clock, Globe, LogIn } from "lucide-react";
 
 const Index = () => {
   const features = [
@@ -28,6 +28,29 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Video className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold">LiveClip AI</span>
+          </Link>
+          <nav className="flex items-center gap-4">
+            <Link to="/pricing">
+              <Button variant="ghost" size="sm">Pricing</Button>
+            </Link>
+            <Link to="/auth">
+              <Button size="sm">
+                <LogIn className="h-4 w-4 mr-2" />
+                Login
+              </Button>
+            </Link>
+          </nav>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />

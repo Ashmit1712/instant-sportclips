@@ -1,15 +1,25 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Video, Zap, Settings, TrendingUp, Users } from "lucide-react";
+import { Activity, Video, Zap, Settings, TrendingUp, Users, LogOut } from "lucide-react";
 import LiveFeedMonitor from "@/components/admin/LiveFeedMonitor";
 import AIModelConfig from "@/components/admin/AIModelConfig";
 import SystemHealth from "@/components/admin/SystemHealth";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("feeds");
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth");
+  };
 
   const stats = [
     { label: "Active Feeds", value: "12", icon: Video, trend: "+3", color: "text-primary" },
@@ -19,7 +29,8 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <ProtectedRoute requiredRole="admin">
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
@@ -38,8 +49,9 @@ const AdminDashboard = () => {
                 <Activity className="h-3 w-3 mr-1 animate-pulse" />
                 System Healthy
               </Badge>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
               </Button>
             </div>
           </div>
@@ -89,6 +101,7 @@ const AdminDashboard = () => {
         </Tabs>
       </div>
     </div>
+    </ProtectedRoute>
   );
 };
 

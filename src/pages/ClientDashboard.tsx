@@ -1,17 +1,28 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Video, Upload, Share2, Settings, Key } from "lucide-react";
+import { Video, Upload, Share2, Settings, Key, LogOut } from "lucide-react";
 import HighlightLibrary from "@/components/client/HighlightLibrary";
 import BrandingSettings from "@/components/client/BrandingSettings";
 import APIDocumentation from "@/components/client/APIDocumentation";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/hooks/useAuth";
 
 const ClientDashboard = () => {
   const [activeTab, setActiveTab] = useState("library");
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth");
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <ProtectedRoute requiredRole="client">
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
@@ -30,9 +41,9 @@ const ClientDashboard = () => {
                 <Upload className="h-4 w-4 mr-2" />
                 Quick Publish
               </Button>
-              <Button size="sm">
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
               </Button>
             </div>
           </div>
@@ -71,6 +82,7 @@ const ClientDashboard = () => {
         </Tabs>
       </div>
     </div>
+    </ProtectedRoute>
   );
 };
 
