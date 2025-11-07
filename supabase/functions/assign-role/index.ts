@@ -129,6 +129,21 @@ Deno.serve(async (req) => {
 
     console.log('Role assigned successfully:', data);
 
+    // Log the role change in audit logs
+    const { error: auditError } = await supabase
+      .from('role_audit_logs')
+      .insert({
+        user_id: userId,
+        role: role,
+        changed_by: user.id,
+        action: 'assigned'
+      });
+
+    if (auditError) {
+      console.error('Error logging audit entry:', auditError);
+      // Don't fail the request if audit logging fails, just log it
+    }
+
     return new Response(
       JSON.stringify({ message: 'Role assigned successfully', data }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

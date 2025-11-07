@@ -9,6 +9,7 @@ import LiveFeedMonitor from "@/components/admin/LiveFeedMonitor";
 import AIModelConfig from "@/components/admin/AIModelConfig";
 import SystemHealth from "@/components/admin/SystemHealth";
 import UserRoleManagement from "@/components/admin/UserRoleManagement";
+import RoleAuditLogs from "@/components/admin/RoleAuditLogs";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -90,6 +91,7 @@ const AdminDashboard = () => {
               <Shield className="h-4 w-4 mr-2" />
               User Roles
             </TabsTrigger>
+            <TabsTrigger value="audit">Audit Log</TabsTrigger>
           </TabsList>
 
           <TabsContent value="feeds" className="space-y-6">
@@ -106,6 +108,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="roles" className="space-y-6">
             <UserRoleManagement />
+          </TabsContent>
+
+          <TabsContent value="audit" className="space-y-6">
+            <RoleAuditLogs />
           </TabsContent>
         </Tabs>
       </div>
