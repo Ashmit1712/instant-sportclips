@@ -5,9 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Copy, Check } from "lucide-react";
+import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserListItem {
   id: string;
@@ -22,16 +23,31 @@ const UserListView = () => {
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalUsers, setTotalUsers] = useState(0);
   const { toast } = useToast();
+
+  const totalPages = Math.ceil(totalUsers / pageSize);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.rpc('get_user_list');
+      
+      // Fetch users with pagination
+      const { data, error } = await supabase.rpc('get_user_list', {
+        page_limit: pageSize,
+        page_offset: (currentPage - 1) * pageSize
+      });
       
       if (error) throw error;
       
       setUsers(data || []);
+      
+      // Fetch total count
+      const { data: countData, error: countError } = await supabase.rpc('get_user_count');
+      if (countError) throw countError;
+      setTotalUsers(Number(countData) || 0);
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
@@ -46,7 +62,24 @@ const UserListView = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [currentPage, pageSize]);
+
+  const handlePageSizeChange = (value: string) => {
+    setPageSize(Number(value));
+    setCurrentPage(1);
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -86,12 +119,27 @@ const UserListView = () => {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>User List</CardTitle>
-            <CardDescription>All registered users with their roles and activity</CardDescription>
+            <CardDescription>
+              {totalUsers} total {totalUsers === 1 ? 'user' : 'users'}
+            </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchUsers}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 / page</SelectItem>
+                <SelectItem value="10">10 / page</SelectItem>
+                <SelectItem value="25">25 / page</SelectItem>
+                <SelectItem value="50">50 / page</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={fetchUsers}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -152,6 +200,37 @@ const UserListView = () => {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+        
+        {users.length > 0 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalUsers)} of {totalUsers}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <div className="text-sm text-muted-foreground px-2">
+                Page {currentPage} of {totalPages}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextPage}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

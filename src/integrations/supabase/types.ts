@@ -91,17 +91,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_list: {
-        Args: never
-        Returns: {
-          created_at: string
-          email: string
-          full_name: string
-          id: string
-          last_sign_in_at: string
-          role: Database["public"]["Enums"]["app_role"]
-        }[]
-      }
+      get_user_count: { Args: never; Returns: number }
+      get_user_list:
+        | {
+            Args: never
+            Returns: {
+              created_at: string
+              email: string
+              full_name: string
+              id: string
+              last_sign_in_at: string
+              role: Database["public"]["Enums"]["app_role"]
+            }[]
+          }
+        | {
+            Args: { page_limit?: number; page_offset?: number }
+            Returns: {
+              created_at: string
+              email: string
+              full_name: string
+              id: string
+              last_sign_in_at: string
+              role: Database["public"]["Enums"]["app_role"]
+            }[]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
