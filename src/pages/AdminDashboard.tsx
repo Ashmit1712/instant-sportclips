@@ -4,12 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Video, Zap, Settings, TrendingUp, Users, LogOut, Shield } from "lucide-react";
+import { Activity, Video, Zap, Settings, TrendingUp, Users, LogOut, Shield, UserCircle } from "lucide-react";
 import LiveFeedMonitor from "@/components/admin/LiveFeedMonitor";
 import AIModelConfig from "@/components/admin/AIModelConfig";
 import SystemHealth from "@/components/admin/SystemHealth";
 import UserRoleManagement from "@/components/admin/UserRoleManagement";
 import RoleAuditLogs from "@/components/admin/RoleAuditLogs";
+import UserListView from "@/components/admin/UserListView";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -87,6 +88,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="feeds">Live Feeds</TabsTrigger>
             <TabsTrigger value="models">AI Models</TabsTrigger>
             <TabsTrigger value="health">System Health</TabsTrigger>
+            <TabsTrigger value="users">
+              <UserCircle className="h-4 w-4 mr-2" />
+              Users
+            </TabsTrigger>
             <TabsTrigger value="roles">
               <Shield className="h-4 w-4 mr-2" />
               User Roles
@@ -104,6 +109,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="health" className="space-y-6">
             <SystemHealth />
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-6">
+            <UserListView />
           </TabsContent>
 
           <TabsContent value="roles" className="space-y-6">
