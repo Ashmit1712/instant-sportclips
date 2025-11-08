@@ -107,6 +107,24 @@ export type Database = {
               page_offset?: number
               role_filter?: Database["public"]["Enums"]["app_role"]
               search_term?: string
+              sort_by?: string
+              sort_direction?: string
+            }
+            Returns: {
+              created_at: string
+              email: string
+              full_name: string
+              id: string
+              last_sign_in_at: string
+              role: Database["public"]["Enums"]["app_role"]
+            }[]
+          }
+        | {
+            Args: {
+              page_limit?: number
+              page_offset?: number
+              role_filter?: Database["public"]["Enums"]["app_role"]
+              search_term?: string
             }
             Returns: {
               created_at: string

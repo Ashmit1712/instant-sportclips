@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight, Search, X, Download, FileSpreadsheet } from "lucide-react";
+import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight, Search, X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,6 +30,8 @@ const UserListView = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'client'>("all");
+  const [sortBy, setSortBy] = useState<'email' | 'full_name' | 'role' | 'created_at' | 'last_sign_in_at'>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
 
   const totalPages = Math.ceil(totalUsers / pageSize);
@@ -42,10 +44,12 @@ const UserListView = () => {
         page_limit: pageSize,
         page_offset: (currentPage - 1) * pageSize,
         search_term: searchTerm,
-        role_filter: roleFilter === "all" ? null : roleFilter
+        role_filter: roleFilter === "all" ? null : roleFilter,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       };
       
-      // Fetch users with pagination, search, and filter
+      // Fetch users with pagination, search, filter, and sorting
       const { data, error } = await supabase.rpc('get_user_list', rpcParams);
       
       if (error) throw error;
@@ -73,7 +77,7 @@ const UserListView = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, pageSize, searchTerm, roleFilter]);
+  }, [currentPage, pageSize, searchTerm, roleFilter, sortBy, sortDirection]);
 
   const handlePageSizeChange = (value: string) => {
     setPageSize(Number(value));
@@ -94,6 +98,27 @@ const UserListView = () => {
     setSearchTerm("");
     setRoleFilter("all");
     setCurrentPage(1);
+  };
+
+  const handleSort = (column: typeof sortBy) => {
+    if (sortBy === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const SortIcon = ({ column }: { column: typeof sortBy }) => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
   const fetchAllUsersForExport = async () => {
@@ -328,11 +353,51 @@ const UserListView = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>User ID</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Full Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Last Login</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('email')}
+                  >
+                    <div className="flex items-center">
+                      Email
+                      <SortIcon column="email" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('full_name')}
+                  >
+                    <div className="flex items-center">
+                      Full Name
+                      <SortIcon column="full_name" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('role')}
+                  >
+                    <div className="flex items-center">
+                      Role
+                      <SortIcon column="role" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('created_at')}
+                  >
+                    <div className="flex items-center">
+                      Created
+                      <SortIcon column="created_at" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleSort('last_sign_in_at')}
+                  >
+                    <div className="flex items-center">
+                      Last Login
+                      <SortIcon column="last_sign_in_at" />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
