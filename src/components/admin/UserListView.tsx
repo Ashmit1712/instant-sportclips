@@ -5,11 +5,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight, Search, X, Download, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import * as XLSX from 'xlsx';
 
 interface UserListItem {
   id: string;
@@ -95,6 +96,118 @@ const UserListView = () => {
     setCurrentPage(1);
   };
 
+  const fetchAllUsersForExport = async () => {
+    try {
+      const rpcParams = {
+        page_limit: 10000, // Large limit to get all users
+        page_offset: 0,
+        search_term: searchTerm,
+        role_filter: roleFilter === "all" ? null : roleFilter
+      };
+      
+      const { data, error } = await supabase.rpc('get_user_list', rpcParams);
+      
+      if (error) throw error;
+      
+      return data || [];
+    } catch (error: any) {
+      console.error('Error fetching users for export:', error);
+      toast({
+        title: "Error exporting users",
+        description: error.message,
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const exportToCSV = async () => {
+    const users = await fetchAllUsersForExport();
+    if (users.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no users matching your filters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const headers = ['User ID', 'Email', 'Full Name', 'Role', 'Created At', 'Last Sign In'];
+    const csvRows = [
+      headers.join(','),
+      ...users.map(user => [
+        user.id,
+        user.email,
+        user.full_name || '',
+        user.role,
+        format(new Date(user.created_at), 'yyyy-MM-dd HH:mm:ss'),
+        user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'yyyy-MM-dd HH:mm:ss') : 'Never'
+      ].map(field => `"${field}"`).join(','))
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `users_export_${format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${users.length} users to CSV`,
+    });
+  };
+
+  const exportToExcel = async () => {
+    const users = await fetchAllUsersForExport();
+    if (users.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no users matching your filters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const exportData = users.map(user => ({
+      'User ID': user.id,
+      'Email': user.email,
+      'Full Name': user.full_name || '',
+      'Role': user.role,
+      'Created At': format(new Date(user.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      'Last Sign In': user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'yyyy-MM-dd HH:mm:ss') : 'Never'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+    // Auto-size columns
+    const maxWidth = 50;
+    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
+      wch: Math.min(
+        Math.max(
+          key.length,
+          ...exportData.map(row => String(row[key as keyof typeof row]).length)
+        ),
+        maxWidth
+      )
+    }));
+    worksheet['!cols'] = colWidths;
+
+    XLSX.writeFile(workbook, `users_export_${format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.xlsx`);
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${users.length} users to Excel`,
+    });
+  };
+
   const goToNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
@@ -150,6 +263,14 @@ const UserListView = () => {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={exportToCSV}>
+              <Download className="h-4 w-4 mr-2" />
+              CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportToExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
             <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
               <SelectTrigger className="w-[100px]">
                 <SelectValue />
