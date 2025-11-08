@@ -2,3 +2,9 @@ project_id = "rovfipssszvqqsuexagn"
 
 [functions.assign-role]
 verify_jwt = true
+
+[functions.bulk-assign-role]
+verify_jwt = true
+
+[functions.bulk-delete-users]
+verify_jwt = true

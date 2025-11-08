@@ -5,11 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight, Search, X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight, Search, X, Download, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Trash2, UserCog } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from 'xlsx';
 
 interface UserListItem {
@@ -32,6 +34,11 @@ const UserListView = () => {
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'client'>("all");
   const [sortBy, setSortBy] = useState<'email' | 'full_name' | 'role' | 'created_at' | 'last_sign_in_at'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [bulkRole, setBulkRole] = useState<'admin' | 'client'>('client');
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
   const totalPages = Math.ceil(totalUsers / pageSize);
@@ -119,6 +126,89 @@ const UserListView = () => {
     return sortDirection === 'asc' 
       ? <ArrowUp className="h-4 w-4 ml-1" />
       : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    const newSelection = new Set(selectedUsers);
+    if (newSelection.has(userId)) {
+      newSelection.delete(userId);
+    } else {
+      newSelection.add(userId);
+    }
+    setSelectedUsers(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.size === users.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(users.map(u => u.id)));
+    }
+  };
+
+  const handleBulkRoleAssignment = async () => {
+    if (selectedUsers.size === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-assign-role', {
+        body: { 
+          userIds: Array.from(selectedUsers),
+          role: bulkRole
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Role assignment complete",
+        description: `Successfully assigned ${bulkRole} role to ${data.successCount} user(s)`,
+      });
+
+      setSelectedUsers(new Set());
+      setShowRoleDialog(false);
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Bulk role assignment error:', error);
+      toast({
+        title: "Error assigning roles",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUsers.size === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-delete-users', {
+        body: { userIds: Array.from(selectedUsers) }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Delete complete",
+        description: `Successfully deleted ${data.successCount} user(s)`,
+      });
+
+      setSelectedUsers(new Set());
+      setShowDeleteDialog(false);
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Bulk delete error:', error);
+      toast({
+        title: "Error deleting users",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const fetchAllUsersForExport = async () => {
@@ -285,9 +375,31 @@ const UserListView = () => {
             <CardTitle>User List</CardTitle>
             <CardDescription>
               {totalUsers} total {totalUsers === 1 ? 'user' : 'users'}
+              {selectedUsers.size > 0 && ` • ${selectedUsers.size} selected`}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {selectedUsers.size > 0 && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowRoleDialog(true)}
+                >
+                  <UserCog className="h-4 w-4 mr-2" />
+                  Assign Role
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={exportToCSV}>
               <Download className="h-4 w-4 mr-2" />
               CSV
@@ -352,6 +464,13 @@ const UserListView = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox 
+                      checked={users.length > 0 && selectedUsers.size === users.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all users"
+                    />
+                  </TableHead>
                   <TableHead>User ID</TableHead>
                   <TableHead 
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -403,6 +522,13 @@ const UserListView = () => {
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id}>
+                    <TableCell>
+                      <Checkbox 
+                        checked={selectedUsers.has(user.id)}
+                        onCheckedChange={() => toggleUserSelection(user.id)}
+                        aria-label={`Select ${user.email}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-xs">
                       <div className="flex items-center gap-2">
                         {truncateId(user.id)}
@@ -474,6 +600,58 @@ const UserListView = () => {
           </div>
         )}
       </CardContent>
+
+      {/* Bulk Role Assignment Dialog */}
+      <AlertDialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Assign Role to Selected Users</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to assign a new role to {selectedUsers.size} user(s). This action will update their permissions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Select Role:</label>
+            <Select value={bulkRole} onValueChange={(value) => setBulkRole(value as 'admin' | 'client')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="client">Client</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkRoleAssignment} disabled={isProcessing}>
+              {isProcessing ? 'Processing...' : 'Assign Role'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Users</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedUsers.size} user(s)? This action cannot be undone and will permanently remove all user data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete} 
+              disabled={isProcessing}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isProcessing ? 'Deleting...' : 'Delete Users'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
