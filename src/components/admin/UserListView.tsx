@@ -5,10 +5,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCw, Copy, Check, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 interface UserListItem {
   id: string;
@@ -26,6 +27,8 @@ const UserListView = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'client'>("all");
   const { toast } = useToast();
 
   const totalPages = Math.ceil(totalUsers / pageSize);
@@ -34,18 +37,25 @@ const UserListView = () => {
     try {
       setLoading(true);
       
-      // Fetch users with pagination
-      const { data, error } = await supabase.rpc('get_user_list', {
+      const rpcParams = {
         page_limit: pageSize,
-        page_offset: (currentPage - 1) * pageSize
-      });
+        page_offset: (currentPage - 1) * pageSize,
+        search_term: searchTerm,
+        role_filter: roleFilter === "all" ? null : roleFilter
+      };
+      
+      // Fetch users with pagination, search, and filter
+      const { data, error } = await supabase.rpc('get_user_list', rpcParams);
       
       if (error) throw error;
       
       setUsers(data || []);
       
-      // Fetch total count
-      const { data: countData, error: countError } = await supabase.rpc('get_user_count');
+      // Fetch total count with same filters
+      const { data: countData, error: countError } = await supabase.rpc('get_user_count', {
+        search_term: searchTerm,
+        role_filter: roleFilter === "all" ? null : roleFilter
+      });
       if (countError) throw countError;
       setTotalUsers(Number(countData) || 0);
     } catch (error: any) {
@@ -62,10 +72,26 @@ const UserListView = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, searchTerm, roleFilter]);
 
   const handlePageSizeChange = (value: string) => {
     setPageSize(Number(value));
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleRoleFilterChange = (value: string) => {
+    setRoleFilter(value as 'all' | 'admin' | 'client');
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setRoleFilter("all");
     setCurrentPage(1);
   };
 
@@ -140,6 +166,34 @@ const UserListView = () => {
               Refresh
             </Button>
           </div>
+        </div>
+        
+        <div className="flex items-center gap-2 mt-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by email or name..."
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All roles" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="client">Client</SelectItem>
+            </SelectContent>
+          </Select>
+          {(searchTerm || roleFilter !== "all") && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>
