@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from 'xlsx';
 import { UserProfileModal } from "./UserProfileModal";
+import { UserFilterSidebar } from "./UserFilterSidebar";
 
 interface UserListItem {
   id: string;
@@ -42,6 +43,10 @@ const UserListView = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [createdFrom, setCreatedFrom] = useState<Date | undefined>();
+  const [createdTo, setCreatedTo] = useState<Date | undefined>();
+  const [loginFrom, setLoginFrom] = useState<Date | undefined>();
+  const [loginTo, setLoginTo] = useState<Date | undefined>();
   const { toast } = useToast();
 
   const totalPages = Math.ceil(totalUsers / pageSize);
@@ -56,7 +61,11 @@ const UserListView = () => {
         search_term: searchTerm,
         role_filter: roleFilter === "all" ? null : roleFilter,
         sort_by: sortBy,
-        sort_direction: sortDirection
+        sort_direction: sortDirection,
+        created_from: createdFrom?.toISOString() || null,
+        created_to: createdTo ? new Date(createdTo.setHours(23, 59, 59, 999)).toISOString() : null,
+        login_from: loginFrom?.toISOString() || null,
+        login_to: loginTo ? new Date(loginTo.setHours(23, 59, 59, 999)).toISOString() : null
       };
       
       // Fetch users with pagination, search, filter, and sorting
@@ -69,7 +78,11 @@ const UserListView = () => {
       // Fetch total count with same filters
       const { data: countData, error: countError } = await supabase.rpc('get_user_count', {
         search_term: searchTerm,
-        role_filter: roleFilter === "all" ? null : roleFilter
+        role_filter: roleFilter === "all" ? null : roleFilter,
+        created_from: createdFrom?.toISOString() || null,
+        created_to: createdTo ? new Date(createdTo.setHours(23, 59, 59, 999)).toISOString() : null,
+        login_from: loginFrom?.toISOString() || null,
+        login_to: loginTo ? new Date(loginTo.setHours(23, 59, 59, 999)).toISOString() : null
       });
       if (countError) throw countError;
       setTotalUsers(Number(countData) || 0);
@@ -87,7 +100,7 @@ const UserListView = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage, pageSize, searchTerm, roleFilter, sortBy, sortDirection]);
+  }, [currentPage, pageSize, searchTerm, roleFilter, sortBy, sortDirection, createdFrom, createdTo, loginFrom, loginTo]);
 
   const handlePageSizeChange = (value: string) => {
     setPageSize(Number(value));
@@ -107,8 +120,14 @@ const UserListView = () => {
   const clearFilters = () => {
     setSearchTerm("");
     setRoleFilter("all");
+    setCreatedFrom(undefined);
+    setCreatedTo(undefined);
+    setLoginFrom(undefined);
+    setLoginTo(undefined);
     setCurrentPage(1);
   };
+
+  const hasActiveFilters = roleFilter !== "all" || !!createdFrom || !!createdTo || !!loginFrom || !!loginTo;
 
   const handleSort = (column: typeof sortBy) => {
     if (sortBy === column) {
@@ -220,7 +239,13 @@ const UserListView = () => {
         page_limit: 10000, // Large limit to get all users
         page_offset: 0,
         search_term: searchTerm,
-        role_filter: roleFilter === "all" ? null : roleFilter
+        role_filter: roleFilter === "all" ? null : roleFilter,
+        sort_by: sortBy,
+        sort_direction: sortDirection,
+        created_from: createdFrom?.toISOString() || null,
+        created_to: createdTo ? new Date(createdTo.setHours(23, 59, 59, 999)).toISOString() : null,
+        login_from: loginFrom?.toISOString() || null,
+        login_to: loginTo ? new Date(loginTo.setHours(23, 59, 59, 999)).toISOString() : null
       };
       
       const { data, error } = await supabase.rpc('get_user_list', rpcParams);
@@ -439,17 +464,21 @@ const UserListView = () => {
               className="pl-9"
             />
           </div>
-          <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All roles" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All roles</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="client">Client</SelectItem>
-            </SelectContent>
-          </Select>
-          {(searchTerm || roleFilter !== "all") && (
+          <UserFilterSidebar
+            roleFilter={roleFilter}
+            onRoleFilterChange={handleRoleFilterChange}
+            createdFrom={createdFrom}
+            createdTo={createdTo}
+            onCreatedFromChange={setCreatedFrom}
+            onCreatedToChange={setCreatedTo}
+            loginFrom={loginFrom}
+            loginTo={loginTo}
+            onLoginFromChange={setLoginFrom}
+            onLoginToChange={setLoginTo}
+            onClearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+          {(searchTerm || hasActiveFilters) && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="h-4 w-4 mr-1" />
               Clear
