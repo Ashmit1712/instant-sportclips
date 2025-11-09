@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import * as XLSX from 'xlsx';
+import { UserProfileModal } from "./UserProfileModal";
 
 interface UserListItem {
   id: string;
@@ -39,6 +40,8 @@ const UserListView = () => {
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [bulkRole, setBulkRole] = useState<'admin' | 'client'>('client');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const { toast } = useToast();
 
   const totalPages = Math.ceil(totalUsers / pageSize);
@@ -521,22 +524,35 @@ const UserListView = () => {
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
+                  <TableRow 
+                    key={user.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={(e) => {
+                      // Don't open modal if clicking on checkbox or copy button
+                      if (!(e.target as HTMLElement).closest('button, [role="checkbox"]')) {
+                        setSelectedUserId(user.id);
+                        setIsProfileModalOpen(true);
+                      }
+                    }}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox 
                         checked={selectedUsers.has(user.id)}
                         onCheckedChange={() => toggleUserSelection(user.id)}
                         aria-label={`Select ${user.email}`}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="font-mono text-xs" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         {truncateId(user.id)}
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0"
-                          onClick={() => copyToClipboard(user.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(user.id);
+                          }}
                         >
                           {copiedId === user.id ? (
                             <Check className="h-3 w-3 text-success" />
@@ -652,6 +668,17 @@ const UserListView = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        userId={selectedUserId}
+        isOpen={isProfileModalOpen}
+        onClose={() => {
+          setIsProfileModalOpen(false);
+          setSelectedUserId(null);
+        }}
+        onUpdate={fetchUsers}
+      />
     </Card>
   );
 };
