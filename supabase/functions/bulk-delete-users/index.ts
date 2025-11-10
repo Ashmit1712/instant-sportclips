@@ -113,6 +113,25 @@ Deno.serve(async (req) => {
 
     console.log(`Bulk delete complete: ${successCount} succeeded, ${failureCount} failed`);
 
+    // Create notification for bulk deletion
+    const { error: notifError } = await anonClient
+      .from('admin_notifications')
+      .insert({
+        title: 'Bulk User Deletion Completed',
+        message: `Successfully deleted ${successCount} users`,
+        type: 'bulk_action',
+        severity: 'warning',
+        metadata: {
+          user_count: successCount,
+          deleted_by: user.id,
+          deleted_by_email: user.email
+        }
+      });
+
+    if (notifError) {
+      console.error('Error creating notification:', notifError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

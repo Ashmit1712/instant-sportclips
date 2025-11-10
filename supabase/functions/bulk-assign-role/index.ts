@@ -128,6 +128,26 @@ Deno.serve(async (req) => {
 
     console.log(`Bulk role assignment complete: ${successCount} succeeded, ${failureCount} failed`);
 
+    // Create notification for bulk action
+    const { error: notifError } = await supabaseClient
+      .from('admin_notifications')
+      .insert({
+        title: 'Bulk Role Assignment Completed',
+        message: `Successfully assigned ${successCount} users to role ${role}`,
+        type: 'bulk_action',
+        severity: 'info',
+        metadata: {
+          user_count: successCount,
+          role: role,
+          changed_by: user.id,
+          changed_by_email: user.email
+        }
+      });
+
+    if (notifError) {
+      console.error('Error creating notification:', notifError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

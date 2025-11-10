@@ -11,6 +11,7 @@ import SystemHealth from "@/components/admin/SystemHealth";
 import UserRoleManagement from "@/components/admin/UserRoleManagement";
 import RoleAuditLogs from "@/components/admin/RoleAuditLogs";
 import UserListView from "@/components/admin/UserListView";
+import { NotificationCenter } from "@/components/admin/NotificationCenter";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -48,6 +49,7 @@ const AdminDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <NotificationCenter />
               <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20">
                 <Activity className="h-3 w-3 mr-1 animate-pulse" />
                 System Healthy
