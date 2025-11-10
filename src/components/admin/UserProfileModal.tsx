@@ -37,9 +37,27 @@ interface RoleAuditLog {
   changer_email?: string;
 }
 
+interface ActivityLog {
+  id: string;
+  action_type: string;
+  action_details: any;
+  created_at: string;
+}
+
+interface TimelineEvent {
+  id: string;
+  type: 'role_change' | 'profile_update' | 'login' | 'account_created';
+  timestamp: string;
+  description: string;
+  details?: string;
+  metadata?: any;
+}
+
 export const UserProfileModal = ({ userId, isOpen, onClose, onUpdate }: UserProfileModalProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [roleHistory, setRoleHistory] = useState<RoleAuditLog[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -129,6 +147,22 @@ export const UserProfileModal = ({ userId, isOpen, onClose, onUpdate }: UserProf
       }));
 
       setRoleHistory(enrichedAuditData);
+
+      // Fetch activity logs
+      const { data: activityData, error: activityError } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (activityError) {
+        console.error('Error fetching activity logs:', activityError);
+      }
+
+      setActivityLogs(activityData || []);
+
+      // Build timeline
+      buildTimeline(userProfile, enrichedAuditData, activityData || []);
     } catch (error: any) {
       console.error('Error fetching user details:', error);
       toast({
@@ -172,9 +206,76 @@ export const UserProfileModal = ({ userId, isOpen, onClose, onUpdate }: UserProf
     }
   };
 
+  const buildTimeline = (
+    userProfile: UserProfile,
+    roleAudit: RoleAuditLog[],
+    activities: ActivityLog[]
+  ) => {
+    const events: TimelineEvent[] = [];
+
+    // Account creation
+    events.push({
+      id: 'account_created',
+      type: 'account_created',
+      timestamp: userProfile.created_at,
+      description: 'Account created',
+      details: 'User account was created'
+    });
+
+    // Login events (from last_sign_in)
+    if (userProfile.last_sign_in_at) {
+      events.push({
+        id: 'last_login',
+        type: 'login',
+        timestamp: userProfile.last_sign_in_at,
+        description: 'Last sign in',
+        details: 'User logged into the system'
+      });
+    }
+
+    // Role changes
+    roleAudit.forEach((log) => {
+      events.push({
+        id: log.id,
+        type: 'role_change',
+        timestamp: log.created_at,
+        description: `Role ${log.action} to ${log.role}`,
+        details: `Changed by ${log.changer_email}`,
+        metadata: log
+      });
+    });
+
+    // Profile updates
+    activities.forEach((log) => {
+      if (log.action_type === 'profile_update') {
+        const changes = log.action_details?.changes || {};
+        const changedFields = Object.keys(changes).filter(
+          (key) => changes[key].old !== changes[key].new
+        );
+        
+        events.push({
+          id: log.id,
+          type: 'profile_update',
+          timestamp: log.created_at,
+          description: 'Profile updated',
+          details: changedFields.map(field => 
+            `${field}: "${changes[field].old || 'empty'}" → "${changes[field].new}"`
+          ).join(', '),
+          metadata: log.action_details
+        });
+      }
+    });
+
+    // Sort by timestamp descending
+    events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    setTimeline(events);
+  };
+
   const handleClose = () => {
     setProfile(null);
     setRoleHistory([]);
+    setActivityLogs([]);
+    setTimeline([]);
     setEditedName("");
     onClose();
   };
@@ -258,46 +359,50 @@ export const UserProfileModal = ({ userId, isOpen, onClose, onUpdate }: UserProf
               <Card>
                 <CardHeader>
                   <CardTitle>Activity Timeline</CardTitle>
-                  <CardDescription>User activity and account milestones</CardDescription>
+                  <CardDescription>Complete activity history with detailed event tracking</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                      <div className="w-2 h-2 mt-2 rounded-full bg-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium">Account Created</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(profile.created_at), 'PPpp')}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(profile.created_at), { addSuffix: true })}
-                        </p>
+                <CardContent>
+                  {timeline.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No activity history available</p>
+                  ) : (
+                    <div className="relative">
+                      {/* Timeline line */}
+                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+                      
+                      <div className="space-y-4">
+                        {timeline.map((event) => (
+                          <div key={event.id} className="relative pl-10">
+                            {/* Timeline dot */}
+                            <div className={`absolute left-2.5 w-3 h-3 rounded-full ring-4 ring-background ${
+                              event.type === 'role_change' ? 'bg-blue-500' :
+                              event.type === 'profile_update' ? 'bg-green-500' :
+                              event.type === 'login' ? 'bg-purple-500' :
+                              'bg-gray-500'
+                            }`} />
+                            
+                            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{event.description}</p>
+                                  {event.details && (
+                                    <p className="text-xs text-muted-foreground mt-1">{event.details}</p>
+                                  )}
+                                </div>
+                                <Badge variant="outline" className="text-xs shrink-0">
+                                  {event.type === 'role_change' ? 'Role' :
+                                   event.type === 'profile_update' ? 'Profile' :
+                                   event.type === 'login' ? 'Login' : 'Account'}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(event.timestamp), 'PPpp')} • {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-
-                    {profile.last_sign_in_at ? (
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="w-2 h-2 mt-2 rounded-full bg-green-500" />
-                        <div className="flex-1">
-                          <p className="font-medium">Last Sign In</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(profile.last_sign_in_at), 'PPpp')}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatDistanceToNow(new Date(profile.last_sign_in_at), { addSuffix: true })}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="w-2 h-2 mt-2 rounded-full bg-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="font-medium">Last Sign In</p>
-                          <p className="text-sm text-muted-foreground">Never signed in</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
